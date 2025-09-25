@@ -1,6 +1,7 @@
 """
 Cross-validation and related model diagnostics.
 """
+
 import autograd.numpy as np
 import autograd.numpy.random as npr
 
@@ -9,8 +10,15 @@ from ssm.util import ensure_args_are_lists
 
 @ensure_args_are_lists
 def cross_val_scores(
-        model, datas, inputs=None, masks=None, tags=None,
-        heldout_frac=0.1, n_repeats=3, **fit_kw):
+    model,
+    datas,
+    inputs=None,
+    masks=None,
+    tags=None,
+    heldout_frac=0.1,
+    n_repeats=3,
+    **fit_kw,
+):
     """
     Evaluate HMM log-likelihood scores on heldout data using
     a speckled holdout pattern.
@@ -53,19 +61,16 @@ def cross_val_scores(
     train_scores = np.empty(n_repeats)
 
     for r in range(n_repeats):
-
         # Create mask for training data.
         train_masks = []
         for k, m in enumerate(masks):
-
             # Determine number of heldout points.
             total_obs = np.sum(m)
             obs_inds = np.argwhere(m)
             heldout_num = int(total_obs * heldout_frac)
 
             # Randomly hold out speckled data pattern.
-            heldout_flat_inds = npr.choice(
-                total_obs, heldout_num, replace=False)
+            heldout_flat_inds = npr.choice(total_obs, heldout_num, replace=False)
 
             # Create training mask.
             train_masks.append(m.copy())
@@ -76,11 +81,11 @@ def cross_val_scores(
         model.fit(datas, inputs=inputs, tags=tags, masks=train_masks, **fit_kw)
 
         train_ll = model.log_likelihood(
-            datas, inputs=inputs, tags=tags, masks=train_masks)
+            datas, inputs=inputs, tags=tags, masks=train_masks
+        )
 
         # Compute log-likelihood without training mask.
-        full_ll = model.log_likelihood(
-            datas, inputs=inputs, tags=tags, masks=masks)
+        full_ll = model.log_likelihood(datas, inputs=inputs, tags=tags, masks=masks)
 
         # Total number of training and observed datapoints.
         n_observed = np.sum([m.sum() for m in masks])

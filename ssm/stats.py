@@ -68,8 +68,9 @@ def batch_mahalanobis(L, x):
     # Invert each of the K arrays and reshape like L
     L_inv = np.reshape(np.array([np.linalg.inv(Li.T) for Li in flat_L]), L.shape)
     # dot with L_inv^T; square and sum.
-    xs = np.einsum('...i,...ij->...j', x, L_inv)
+    xs = np.einsum("...i,...ij->...j", x, L_inv)
     return np.sum(xs**2, axis=-1)
+
 
 def _multivariate_normal_logpdf(data, mus, Sigmas, Ls=None):
     """
@@ -103,14 +104,14 @@ def _multivariate_normal_logpdf(data, mus, Sigmas, Ls=None):
     if Ls is not None:
         assert Ls.shape[-2] == Ls.shape[-1] == D
     else:
-        Ls = np.linalg.cholesky(Sigmas)                              # (..., D, D)
+        Ls = np.linalg.cholesky(Sigmas)  # (..., D, D)
 
     # Quadratic term
-    lp = -0.5 * batch_mahalanobis(Ls, data - mus)                    # (...,)
+    lp = -0.5 * batch_mahalanobis(Ls, data - mus)  # (...,)
     # Normalizer
-    L_diag = np.reshape(Ls, Ls.shape[:-2] + (-1,))[..., ::D + 1]     # (..., D)
-    half_log_det = np.sum(np.log(abs(L_diag)), axis=-1)              # (...,)
-    lp = lp - 0.5 * D * np.log(2 * np.pi) - half_log_det             # (...,)
+    L_diag = np.reshape(Ls, Ls.shape[:-2] + (-1,))[..., :: D + 1]  # (..., D)
+    half_log_det = np.sum(np.log(abs(L_diag)), axis=-1)  # (...,)
+    lp = lp - 0.5 * D * np.log(2 * np.pi) - half_log_det  # (...,)
 
     return lp
 
@@ -186,17 +187,29 @@ def multivariate_normal_logpdf(data, mus, Sigmas, mask=None):
 
         this_data = flat_data[np.ix_(this_inds, this_mask)]
         this_mus = mus[..., this_mask]
-        this_Sigmas = Sigmas[np.ix_(*[np.ones(sz, dtype=bool) for sz in Sigmas.shape[:-2]], this_mask, this_mask)]
+        this_Sigmas = Sigmas[
+            np.ix_(
+                *[np.ones(sz, dtype=bool) for sz in Sigmas.shape[:-2]],
+                this_mask,
+                this_mask,
+            )
+        ]
 
         # Precompute the Cholesky decomposition
         this_Ls = np.linalg.cholesky(this_Sigmas)
 
         # Broadcast mus and Sigmas to full shape and extract the necessary indices
-        this_mus = flatten_to_dim(np.broadcast_to(this_mus, shp + (this_D,)), 1)[this_inds]
-        this_Ls = flatten_to_dim(np.broadcast_to(this_Ls, shp + (this_D, this_D)), 2)[this_inds]
+        this_mus = flatten_to_dim(np.broadcast_to(this_mus, shp + (this_D,)), 1)[
+            this_inds
+        ]
+        this_Ls = flatten_to_dim(np.broadcast_to(this_Ls, shp + (this_D, this_D)), 2)[
+            this_inds
+        ]
 
         # Evaluate the log likelihood
-        lls[this_inds] = _multivariate_normal_logpdf(this_data, this_mus, this_Sigmas, Ls=this_Ls)
+        lls[this_inds] = _multivariate_normal_logpdf(
+            this_data, this_mus, this_Sigmas, Ls=this_Ls
+        )
 
     # Reshape the output
     assert np.all(np.isfinite(lls))
@@ -239,7 +252,7 @@ def expected_multivariate_normal_logpdf(E_xs, E_xxTs, E_mus, E_mumuTs, Sigmas, L
     if Ls is not None:
         assert Ls.shape[-2] == Ls.shape[-1] == D
     else:
-        Ls = np.linalg.cholesky(Sigmas)                              # (..., D, D)
+        Ls = np.linalg.cholesky(Sigmas)  # (..., D, D)
 
     # TODO: Figure out how to perform this computation without explicit inverse
     Sigma_invs = np.linalg.inv(Sigmas)
@@ -268,9 +281,9 @@ def expected_multivariate_normal_logpdf(E_xs, E_xxTs, E_mus, E_mumuTs, Sigmas, L
     lp = -0.5 * np.sum(Sigma_invs * As, axis=(-2, -1))
 
     # Normalizer
-    L_diag = np.reshape(Ls, Ls.shape[:-2] + (-1,))[..., ::D + 1]     # (..., D)
-    half_log_det = np.sum(np.log(abs(L_diag)), axis=-1)              # (...,)
-    lp = lp - 0.5 * D * np.log(2 * np.pi) - half_log_det             # (...,)
+    L_diag = np.reshape(Ls, Ls.shape[:-2] + (-1,))[..., :: D + 1]  # (..., D)
+    half_log_det = np.sum(np.log(abs(L_diag)), axis=-1)  # (...,)
+    lp = lp - 0.5 * D * np.log(2 * np.pi) - half_log_det  # (...,)
 
     return lp
 
@@ -310,7 +323,7 @@ def diagonal_gaussian_logpdf(data, mus, sigmasqs, mask=None):
     assert mask.shape == data.shape
 
     normalizer = -0.5 * np.log(2 * np.pi * sigmasqs)
-    return np.sum((normalizer - 0.5 * (data - mus)**2 / sigmasqs) * mask, axis=-1)
+    return np.sum((normalizer - 0.5 * (data - mus) ** 2 / sigmasqs) * mask, axis=-1)
 
 
 def multivariate_studentst_logpdf(data, mus, Sigmas, nus, Ls=None):
@@ -348,23 +361,25 @@ def multivariate_studentst_logpdf(data, mus, Sigmas, nus, Ls=None):
     if Ls is not None:
         assert Ls.shape[-2] == Ls.shape[-1] == D
     else:
-        Ls = np.linalg.cholesky(Sigmas)                              # (..., D, D)
+        Ls = np.linalg.cholesky(Sigmas)  # (..., D, D)
 
     # Quadratic term
-    q = batch_mahalanobis(Ls, data - mus) / nus                      # (...,)
-    lp = - 0.5 * (nus + D) * np.log1p(q)                             # (...,)
+    q = batch_mahalanobis(Ls, data - mus) / nus  # (...,)
+    lp = -0.5 * (nus + D) * np.log1p(q)  # (...,)
 
     # Normalizer
-    lp = lp + gammaln(0.5 * (nus + D)) - gammaln(0.5 * nus)          # (...,)
-    lp = lp - 0.5 * D * np.log(np.pi) - 0.5 * D * np.log(nus)        # (...,)
-    L_diag = np.reshape(Ls, Ls.shape[:-2] + (-1,))[..., ::D + 1]     # (..., D)
-    half_log_det = np.sum(np.log(abs(L_diag)), axis=-1)              # (...,)
+    lp = lp + gammaln(0.5 * (nus + D)) - gammaln(0.5 * nus)  # (...,)
+    lp = lp - 0.5 * D * np.log(np.pi) - 0.5 * D * np.log(nus)  # (...,)
+    L_diag = np.reshape(Ls, Ls.shape[:-2] + (-1,))[..., :: D + 1]  # (..., D)
+    half_log_det = np.sum(np.log(abs(L_diag)), axis=-1)  # (...,)
     lp = lp - half_log_det
 
     return lp
 
 
-def expected_multivariate_studentst_logpdf(E_xs, E_xxTs, E_mus, E_mumuTs, Sigmas, nus, Ls=None):
+def expected_multivariate_studentst_logpdf(
+    E_xs, E_xxTs, E_mus, E_mumuTs, Sigmas, nus, Ls=None
+):
     """
     Compute the expected log probability density of a multivariate Gaussian distribution.
     This will broadcast as long as data, mus, Sigmas have the same (or at
@@ -400,7 +415,7 @@ def expected_multivariate_studentst_logpdf(E_xs, E_xxTs, E_mus, E_mumuTs, Sigmas
     if Ls is not None:
         assert Ls.shape[-2] == Ls.shape[-1] == D
     else:
-        Ls = np.linalg.cholesky(Sigmas)                              # (..., D, D)
+        Ls = np.linalg.cholesky(Sigmas)  # (..., D, D)
 
     # TODO: Figure out how to perform this computation without explicit inverse
     Sigma_invs = np.linalg.inv(Sigmas)
@@ -417,21 +432,21 @@ def expected_multivariate_studentst_logpdf(E_xs, E_xxTs, E_mus, E_mumuTs, Sigmas
     #
     # A = E[xx^T - 2 E[x]E[mu]^T + E[mu mu^T]]
     #
-    As = E_xxTs - 2 * E_xs[..., :, None] * E_mus[..., None, :] + E_mumuTs   # (..., D, D)
-    q = np.sum(Sigma_invs * As, axis=(-2, -1)) / nus                        # (...,)
-    lp = - 0.5 * (nus + D) * np.log1p(q)                                    # (...,)
+    As = E_xxTs - 2 * E_xs[..., :, None] * E_mus[..., None, :] + E_mumuTs  # (..., D, D)
+    q = np.sum(Sigma_invs * As, axis=(-2, -1)) / nus  # (...,)
+    lp = -0.5 * (nus + D) * np.log1p(q)  # (...,)
 
     # Normalizer
-    L_diag = np.reshape(Ls, Ls.shape[:-2] + (-1,))[..., ::D + 1]            # (..., D)
-    half_log_det = np.sum(np.log(abs(L_diag)), axis=-1)                     # (...,)
-    lp = lp - 0.5 * D * np.log(2 * np.pi) - half_log_det                    # (...,)
+    L_diag = np.reshape(Ls, Ls.shape[:-2] + (-1,))[..., :: D + 1]  # (..., D)
+    half_log_det = np.sum(np.log(abs(L_diag)), axis=-1)  # (...,)
+    lp = lp - 0.5 * D * np.log(2 * np.pi) - half_log_det  # (...,)
 
     return lp
 
 
 def independent_studentst_logpdf(data, mus, sigmasqs, nus, mask=None):
     """
-    Compute the log probability density of a set of independent Student's t 
+    Compute the log probability density of a set of independent Student's t
     random variables. This will broadcast as long as data, mus, nus, and
     sigmas have the same (or at least compatible) leading dimensions.
 
@@ -468,7 +483,9 @@ def independent_studentst_logpdf(data, mus, sigmasqs, nus, mask=None):
 
     normalizer = gammaln(0.5 * (nus + 1)) - gammaln(0.5 * nus)
     normalizer = normalizer - 0.5 * (np.log(np.pi) + np.log(nus) + np.log(sigmasqs))
-    ll = normalizer - 0.5 * (nus + 1) * np.log(1.0 + (data - mus)**2 / (sigmasqs * nus))
+    ll = normalizer - 0.5 * (nus + 1) * np.log(
+        1.0 + (data - mus) ** 2 / (sigmasqs * nus)
+    )
     return np.sum(ll * mask, axis=-1)
 
 
@@ -495,7 +512,7 @@ def bernoulli_logpdf(data, logit_ps, mask=None):
         Log probabilities under the Bernoulli distribution(s).
     """
     D = data.shape[-1]
-    assert (data.dtype == int or data.dtype == bool)
+    assert data.dtype == int or data.dtype == bool
     assert data.min() >= 0 and data.max() <= 1
     assert logit_ps.shape[-1] == D
 
@@ -589,10 +606,10 @@ def categorical_logpdf(data, logits, mask=None):
     mask = mask if mask is not None else np.ones_like(data, dtype=bool)
     assert mask.shape == data.shape
 
-    logits = logits - logsumexp(logits, axis=-1, keepdims=True)      # (..., D, C)
-    x = one_hot(data, C)                                             # (..., D, C)
-    lls = np.sum(x * logits, axis=-1)                                # (..., D)
-    return np.sum(lls * mask, axis=-1)                               # (...,)
+    logits = logits - logsumexp(logits, axis=-1, keepdims=True)  # (..., D, C)
+    x = one_hot(data, C)  # (..., D, C)
+    lls = np.sum(x * logits, axis=-1)  # (..., D)
+    return np.sum(lls * mask, axis=-1)  # (...,)
 
 
 def vonmises_logpdf(data, mus, kappas, mask=None):
@@ -623,9 +640,11 @@ def vonmises_logpdf(data, mus, kappas, mask=None):
     try:
         from autograd.scipy.special import i0
     except:
-        raise Exception("von Mises relies on the function autograd.scipy.special.i0. "
-                        "This is present in the latest Github code, but not on pypi. "
-                        "Please use the Github version of autograd instead.")
+        raise Exception(
+            "von Mises relies on the function autograd.scipy.special.i0. "
+            "This is present in the latest Github code, but not on pypi. "
+            "Please use the Github version of autograd instead."
+        )
 
     D = data.shape[-1]
     assert mus.shape[-1] == D

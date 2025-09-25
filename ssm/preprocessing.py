@@ -2,6 +2,7 @@ from tqdm.auto import trange
 import autograd.numpy as np
 from sklearn.decomposition import PCA
 
+
 def pca_with_imputation(D, datas, masks, num_iters=20):
     datas = [datas] if not isinstance(datas, (list, tuple)) else datas
     if masks is not None:
@@ -18,7 +19,7 @@ def pca_with_imputation(D, datas, masks, num_iters=20):
         # Fill in missing data with mean to start
         fulldata = data.copy()
         for n in range(fulldata.shape[1]):
-            fulldata[~mask[:,n], n] = fulldata[mask[:,n], n].mean()
+            fulldata[~mask[:, n], n] = fulldata[mask[:, n], n].mean()
 
         for itr in range(num_iters):
             # Run PCA on imputed data
@@ -55,6 +56,7 @@ def factor_analysis_with_imputation(D, datas, masks=None, num_iters=50):
 
     # Make the factor analysis model
     from pybasicbayes.models import FactorAnalysis
+
     fa = FactorAnalysis(N, D, alpha_0=1e-3, beta_0=1e-3)
     fa.regression.sigmasq_flat = np.ones(N)
     for data, mask in zip(datas, masks):
@@ -76,7 +78,9 @@ def factor_analysis_with_imputation(D, datas, masks=None, num_iters=50):
     # Get the continuous states and their covariances
     E_xs = [states.E_Z for states in fa.data_list]
     E_xxTs = [states.E_ZZT for states in fa.data_list]
-    Cov_xs = [E_xxT - E_x[:, :, None] * E_x[:, None, :] for E_x, E_xxT in zip(E_xs, E_xxTs)]
+    Cov_xs = [
+        E_xxT - E_x[:, :, None] * E_x[:, None, :] for E_x, E_xxT in zip(E_xs, E_xxTs)
+    ]
 
     # Rotate the states with SVD so that the columns of the
     # emission matrix, C, are orthogonal and sorted in order
@@ -89,7 +93,10 @@ def factor_analysis_with_imputation(D, datas, masks=None, num_iters=50):
     # Thus, the scaling must be accounted for in C.
     C, S, VT = np.linalg.svd(fa.W, full_matrices=False)
     xhats = [x.dot(VT.T) for x in E_xs]
-    Cov_xhats = [np.matmul(np.matmul(VT[None, :, :], Cov_x), VT.T[None, :, :]) for Cov_x in Cov_xs]
+    Cov_xhats = [
+        np.matmul(np.matmul(VT[None, :, :], Cov_x), VT.T[None, :, :])
+        for Cov_x in Cov_xs
+    ]
 
     # Test that we got this right
     for x, xhat in zip(E_xs, xhats):
@@ -114,14 +121,14 @@ def interpolate_data(data, mask):
     interp_data = data.copy()
     if np.any(~mask):
         for n in range(N):
-            if np.sum(mask[:,n]) >= 2:
-                t_missing = np.arange(T)[~mask[:,n]]
-                t_given = np.arange(T)[mask[:,n]]
-                y_given = data[mask[:,n], n]
-                interp_data[~mask[:,n], n] = np.interp(t_missing, t_given, y_given)
+            if np.sum(mask[:, n]) >= 2:
+                t_missing = np.arange(T)[~mask[:, n]]
+                t_given = np.arange(T)[mask[:, n]]
+                y_given = data[mask[:, n], n]
+                interp_data[~mask[:, n], n] = np.interp(t_missing, t_given, y_given)
             else:
                 # Can't do much if we don't see anything... just set it to zero
-                interp_data[~mask[:,n], n] = 0
+                interp_data[~mask[:, n], n] = 0
     return interp_data
 
 
@@ -130,6 +137,7 @@ def trend_filter(data, npoly=1, nexp=0):
     Subtract a linear trend from the data
     """
     from sklearn.linear_model import LinearRegression
+
     lr = LinearRegression(fit_intercept=True)
     T = data.shape[0]
     t = np.arange(T)
@@ -139,12 +147,12 @@ def trend_filter(data, npoly=1, nexp=0):
 
     # Polynomial of given order (npoly)
     for k in range(npoly):
-        features[:, k] = t**(k+1)
+        features[:, k] = t ** (k + 1)
 
     # Exponential functions (logarithmically spaced)
     for k in range(nexp):
-        tau = T / (k+1)
-        features[:, npoly+k] = np.exp(-t / tau)
+        tau = T / (k + 1)
+        features[:, npoly + k] = np.exp(-t / tau)
 
     lr.fit(features, data)
     trend = lr.predict(features)
@@ -161,4 +169,3 @@ def standardize(data, mask):
     y[~mask] = 0
     assert np.all(np.isfinite(y))
     return y
-

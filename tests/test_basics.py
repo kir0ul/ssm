@@ -20,7 +20,7 @@ def test_sample(T=10, K=4, D=3, M=2):
         "recurrent",
         "recurrent_only",
         "rbf_recurrent",
-        "nn_recurrent"
+        "nn_recurrent",
     ]
 
     observation_names = [
@@ -39,7 +39,7 @@ def test_sample(T=10, K=4, D=3, M=2):
         "independent_ar",
         "robust_ar",
         "no_input_robust_ar",
-        "diagonal_robust_ar"
+        "diagonal_robust_ar",
     ]
 
     # Sample basic (no prefix, inputs, etc.)
@@ -67,29 +67,33 @@ def test_sample(T=10, K=4, D=3, M=2):
         for observations in observation_names:
             hmm = ssm.HMM(K, D, M=M, transitions=transitions, observations=observations)
             zpre, xpre = hmm.sample(3, input=npr.randn(3, M))
-            zsmpl, xsmpl = hmm.sample(T, prefix=(zpre, xpre), input=npr.randn(T, M), with_noise=False)
+            zsmpl, xsmpl = hmm.sample(
+                T, prefix=(zpre, xpre), input=npr.randn(T, M), with_noise=False
+            )
 
 
 def test_constrained_hmm(T=100, K=3, D=3):
-    hmm = ssm.HMM(K, D, M=0,
-                  transitions="constrained",
-                  observations="gaussian")
+    hmm = ssm.HMM(K, D, M=0, transitions="constrained", observations="gaussian")
     z, x = hmm.sample(T)
 
-    transition_mask = np.array([
-        [1, 0, 1],
-        [1, 0, 0],
-        [1, 0, 1],
-    ]).astype(bool)
+    transition_mask = np.array(
+        [
+            [1, 0, 1],
+            [1, 0, 0],
+            [1, 0, 1],
+        ]
+    ).astype(bool)
     init_Ps = np.random.rand(3, 3)
     init_Ps /= init_Ps.sum(axis=-1, keepdims=True)
-    transition_kwargs = dict(
-        transition_mask=transition_mask
+    transition_kwargs = dict(transition_mask=transition_mask)
+    fit_hmm = ssm.HMM(
+        K,
+        D,
+        M=0,
+        transitions="constrained",
+        observations="gaussian",
+        transition_kwargs=transition_kwargs,
     )
-    fit_hmm = ssm.HMM(K, D, M=0,
-                  transitions="constrained",
-                  observations="gaussian",
-                  transition_kwargs=transition_kwargs)
     fit_hmm.fit(x)
     learned_Ps = fit_hmm.transitions.transition_matrix
     assert np.all(learned_Ps[~transition_mask] == 0)
@@ -108,15 +112,18 @@ def test_hmm_likelihood(T=1000, K=5, D=2):
     y = np.zeros((T, D))
     for t in range(T):
         if t > 0:
-            z[t] = np.random.choice(K, p=A[z[t-1]])
+            z[t] = np.random.choice(K, p=A[z[t - 1]])
         y[t] = C[z[t]] + np.sqrt(sigma) * npr.randn(D)
 
     # Compare to pyhsmm answer
     from pyhsmm.models import HMM as OldHMM
     from pybasicbayes.distributions import Gaussian
-    oldhmm = OldHMM([Gaussian(mu=C[k], sigma=sigma * np.eye(D)) for k in range(K)],
-                  trans_matrix=A,
-                  init_state_distn="uniform")
+
+    oldhmm = OldHMM(
+        [Gaussian(mu=C[k], sigma=sigma * np.eye(D)) for k in range(K)],
+        trans_matrix=A,
+        init_state_distn="uniform",
+    )
     true_lkhd = oldhmm.log_likelihood(y)
 
     # Make an HMM with these parameters
@@ -146,15 +153,18 @@ def test_expectations(T=1000, K=20, D=2):
     y = np.zeros((T, D))
     for t in range(T):
         if t > 0:
-            z[t] = np.random.choice(K, p=A[z[t-1]])
+            z[t] = np.random.choice(K, p=A[z[t - 1]])
         y[t] = C[z[t]] + np.sqrt(sigma) * npr.randn(D)
 
     # Compare to pyhsmm answer
     from pyhsmm.models import HMM as OldHMM
     from pyhsmm.basic.distributions import Gaussian
-    oldhmm = OldHMM([Gaussian(mu=C[k], sigma=sigma * np.eye(D)) for k in range(K)],
-                  trans_matrix=A,
-                  init_state_distn="uniform")
+
+    oldhmm = OldHMM(
+        [Gaussian(mu=C[k], sigma=sigma * np.eye(D)) for k in range(K)],
+        trans_matrix=A,
+        init_state_distn="uniform",
+    )
     oldhmm.add_data(y)
     states = oldhmm.states_list.pop()
     states.E_step()
@@ -189,15 +199,18 @@ def test_viterbi(T=1000, K=20, D=2):
     y = np.zeros((T, D))
     for t in range(T):
         if t > 0:
-            z[t] = np.random.choice(K, p=A[z[t-1]])
+            z[t] = np.random.choice(K, p=A[z[t - 1]])
         y[t] = C[z[t]] + np.sqrt(sigma) * npr.randn(D)
 
     # Compare to pyhsmm answer
     from pyhsmm.models import HMM as OldHMM
     from pyhsmm.basic.distributions import Gaussian
-    oldhmm = OldHMM([Gaussian(mu=C[k], sigma=sigma * np.eye(D)) for k in range(K)],
-                  trans_matrix=A,
-                  init_state_distn="uniform")
+
+    oldhmm = OldHMM(
+        [Gaussian(mu=C[k], sigma=sigma * np.eye(D)) for k in range(K)],
+        trans_matrix=A,
+        init_state_distn="uniform",
+    )
     oldhmm.add_data(y)
     states = oldhmm.states_list.pop()
     states.Viterbi()
@@ -216,14 +229,18 @@ def test_viterbi(T=1000, K=20, D=2):
 def test_hmm_mp_perf(T=10000, K=100, D=20):
     # Make parameters
     pi0 = np.ones(K) / K
-    Ps = npr.rand(T-1, K, K)
+    Ps = npr.rand(T - 1, K, K)
     Ps /= Ps.sum(axis=2, keepdims=True)
     ll = npr.randn(T, K)
     out1 = np.zeros((T, K))
     out2 = np.zeros((T, K))
 
     # Run the PyHSMM message passing code
-    from pyhsmm.internals.hmm_messages_interface import messages_forwards_log, messages_backwards_log
+    from pyhsmm.internals.hmm_messages_interface import (
+        messages_forwards_log,
+        messages_backwards_log,
+    )
+
     tic = time()
     messages_forwards_log(Ps, ll, pi0, out1)
     pyhsmm_dt = time() - tic
@@ -231,7 +248,8 @@ def test_hmm_mp_perf(T=10000, K=100, D=20):
 
     # Run the SSM message passing code
     from ssm.messages import forward_pass, backward_pass
-    forward_pass(pi0, Ps, ll, out2) # Call once to compile, then time it
+
+    forward_pass(pi0, Ps, ll, out2)  # Call once to compile, then time it
     tic = time()
     forward_pass(pi0, Ps, ll, out2)
     smm_dt = time() - tic
@@ -244,7 +262,7 @@ def test_hmm_mp_perf(T=10000, K=100, D=20):
     pyhsmm_dt = time() - tic
     print("PyHSMM Bwd: ", pyhsmm_dt, "sec")
 
-    backward_pass(Ps, ll, out2) # Call once to compile, then time it
+    backward_pass(Ps, ll, out2)  # Call once to compile, then time it
     tic = time()
     backward_pass(Ps, ll, out2)
     smm_dt = time() - tic
@@ -265,15 +283,18 @@ def test_hmm_likelihood_perf(T=10000, K=50, D=20):
     y = np.zeros((T, D))
     for t in range(T):
         if t > 0:
-            z[t] = np.random.choice(K, p=A[z[t-1]])
+            z[t] = np.random.choice(K, p=A[z[t - 1]])
         y[t] = C[z[t]] + np.sqrt(sigma) * npr.randn(D)
 
     # Compare to pyhsmm answer
     from pyhsmm.models import HMM as OldHMM
     from pybasicbayes.distributions import Gaussian
-    oldhmm = OldHMM([Gaussian(mu=C[k], sigma=sigma * np.eye(D)) for k in range(K)],
-                  trans_matrix=A,
-                  init_state_distn="uniform")
+
+    oldhmm = OldHMM(
+        [Gaussian(mu=C[k], sigma=sigma * np.eye(D)) for k in range(K)],
+        trans_matrix=A,
+        init_state_distn="uniform",
+    )
 
     states = oldhmm.add_data(y)
     tic = time()
@@ -285,7 +306,9 @@ def test_hmm_likelihood_perf(T=10000, K=50, D=20):
     hmm = ssm.HMM(K, D, observations="gaussian")
     hmm.transitions.log_Ps = np.log(A)
     hmm.observations.mus = C
-    hmm.observations._sqrt_Sigmas = np.sqrt(sigma) * np.array([np.eye(D) for k in range(K)])
+    hmm.observations._sqrt_Sigmas = np.sqrt(sigma) * np.array(
+        [np.eye(D) for k in range(K)]
+    )
 
     tic = time()
     test_lkhd = hmm.log_probability(y)
@@ -310,18 +333,15 @@ def test_hmm_likelihood_perf(T=10000, K=50, D=20):
 def test_trace_product():
     A = np.random.randn(100, 50, 10)
     B = np.random.randn(100, 10, 50)
-    assert np.allclose(ssm.util.trace_product(A, B),
-                       np.trace(A @ B, axis1=1, axis2=2))
+    assert np.allclose(ssm.util.trace_product(A, B), np.trace(A @ B, axis1=1, axis2=2))
 
     A = np.random.randn(50, 10)
     B = np.random.randn(10, 50)
-    assert np.allclose(ssm.util.trace_product(A, B),
-                       np.trace(A @ B))
+    assert np.allclose(ssm.util.trace_product(A, B), np.trace(A @ B))
 
     A = np.random.randn(1, 1)
     B = np.random.randn(1, 1)
-    assert np.allclose(ssm.util.trace_product(A, B),
-                       np.trace(A @ B))
+    assert np.allclose(ssm.util.trace_product(A, B), np.trace(A @ B))
 
 
 def test_SLDSStructuredMeanField_entropy():
@@ -329,6 +349,7 @@ def test_SLDSStructuredMeanField_entropy():
     SLDSStructuredMeanFieldVariationalPosterior class.
 
     """
+
     def entropy_mv_gaussian(J, h):
         mu = np.linalg.solve(J, h)
         sigma = np.linalg.inv(J)
@@ -345,30 +366,32 @@ def test_SLDSStructuredMeanField_entropy():
         Ds = np.zeros((N, U))
         Rs = 0.1 * np.eye(N)
         us = np.zeros((T, U))
-        ys = np.sin(2 * np.pi * np.arange(T) / 50)[:, None] * npr.randn(1, N) + 0.1 * npr.randn(T, N)
+        ys = np.sin(2 * np.pi * np.arange(T) / 50)[:, None] * npr.randn(
+            1, N
+        ) + 0.1 * npr.randn(T, N)
 
         return m0, S0, As, Bs, Qs, Cs, Ds, Rs, us, ys
 
-    def cumsum(v,strict=False):
+    def cumsum(v, strict=False):
         if not strict:
-            return np.cumsum(v,axis=0)
+            return np.cumsum(v, axis=0)
         else:
             out = np.zeros_like(v)
-            out[1:] = np.cumsum(v[:-1],axis=0)
+            out[1:] = np.cumsum(v[:-1], axis=0)
             return out
 
     def bmat(blocks):
         rowsizes = [row[0].shape[0] for row in blocks]
         colsizes = [col[0].shape[1] for col in zip(*blocks)]
-        rowstarts = cumsum(rowsizes,strict=True)
-        colstarts = cumsum(colsizes,strict=True)
+        rowstarts = cumsum(rowsizes, strict=True)
+        colstarts = cumsum(colsizes, strict=True)
 
         nrows, ncols = sum(rowsizes), sum(colsizes)
-        out = np.zeros((nrows,ncols))
+        out = np.zeros((nrows, ncols))
 
         for i, (rstart, rsz) in enumerate(zip(rowstarts, rowsizes)):
             for j, (cstart, csz) in enumerate(zip(colstarts, colsizes)):
-                out[rstart:rstart+rsz,cstart:cstart+csz] = blocks[i][j]
+                out[rstart : rstart + rsz, cstart : cstart + csz] = blocks[i][j]
         return out
 
     def lds_to_dense_infoparams(params):
@@ -388,7 +411,7 @@ def test_SLDSStructuredMeanField_entropy():
         # C, D, sigma_obs = model.C, model.D, model.sigma_obs
         ss_inv = np.linalg.inv(sigma_states)
 
-        h = np.zeros((T,n))
+        h = np.zeros((T, n))
         h[0] += np.linalg.solve(sigma_init, mu_init)
 
         # Dynamics
@@ -399,14 +422,15 @@ def test_SLDSStructuredMeanField_entropy():
         h += C.T.dot(np.linalg.solve(sigma_obs, data.T)).T
         h += -inputs.dot(D.T).dot(np.linalg.solve(sigma_obs, C))
 
-        J = np.kron(np.eye(T),C.T.dot(np.linalg.solve(sigma_obs,C)))
-        J[:n,:n] += np.linalg.inv(sigma_init)
-        pairblock = bmat([[A.T.dot(ss_inv).dot(A), -A.T.dot(ss_inv)],
-                        [-ss_inv.dot(A), ss_inv]])
-        for t in range(0,n*(T-1),n):
-            J[t:t+2*n,t:t+2*n] += pairblock
+        J = np.kron(np.eye(T), C.T.dot(np.linalg.solve(sigma_obs, C)))
+        J[:n, :n] += np.linalg.inv(sigma_init)
+        pairblock = bmat(
+            [[A.T.dot(ss_inv).dot(A), -A.T.dot(ss_inv)], [-ss_inv.dot(A), ss_inv]]
+        )
+        for t in range(0, n * (T - 1), n):
+            J[t : t + 2 * n, t : t + 2 * n] += pairblock
 
-        return J.reshape(T*n,T*n), h.reshape(T*n)
+        return J.reshape(T * n, T * n), h.reshape(T * n)
 
     T, D, N, U = 100, 10, 10, 0
     params = make_lds_parameters(T, D, N, U)
@@ -416,17 +440,28 @@ def test_SLDSStructuredMeanField_entropy():
 
     # Calculate entropy using kalman filter and posterior's entropy fn
     info_args = ssm.messages.convert_mean_to_info_args(*params)
-    J_ini, h_ini, _, J_dyn_11,\
-        J_dyn_21, J_dyn_22, h_dyn_1,\
-        h_dyn_2, _, J_obs, h_obs, _ = info_args
+    (
+        J_ini,
+        h_ini,
+        _,
+        J_dyn_11,
+        J_dyn_21,
+        J_dyn_22,
+        h_dyn_1,
+        h_dyn_2,
+        _,
+        J_obs,
+        h_obs,
+        _,
+    ) = info_args
 
     # J_obs[1:] += J_dyn_22
     # J_dyn_22[:] = 0
-    log_Z, smoothed_mus, smoothed_Sigmas, ExxnT = ssm.messages.\
-        kalman_info_smoother(*info_args)
+    log_Z, smoothed_mus, smoothed_Sigmas, ExxnT = ssm.messages.kalman_info_smoother(
+        *info_args
+    )
 
-
-    # Model is just a dummy model to simplify 
+    # Model is just a dummy model to simplify
     # instantiating the posterior object.
     model = ssm.SLDS(N, 1, D, emissions="gaussian", dynamics="gaussian")
     datas = params[-1]
@@ -434,21 +469,26 @@ def test_SLDSStructuredMeanField_entropy():
 
     # Assign posterior to have info params that are the same as the ones used
     # in the reference entropy calculation.
-    continuous_state_params = [dict(J_ini=J_ini,
-                                    J_dyn_11=J_dyn_11,
-                                    J_dyn_21=J_dyn_21,
-                                    J_dyn_22=J_dyn_22,
-                                    J_obs=J_obs,
-                                    h_ini=h_ini,
-                                    h_dyn_1=h_dyn_1,
-                                    h_dyn_2=h_dyn_2,
-                                    h_obs=h_obs)]
+    continuous_state_params = [
+        dict(
+            J_ini=J_ini,
+            J_dyn_11=J_dyn_11,
+            J_dyn_21=J_dyn_21,
+            J_dyn_22=J_dyn_22,
+            J_obs=J_obs,
+            h_ini=h_ini,
+            h_dyn_1=h_dyn_1,
+            h_dyn_2=h_dyn_2,
+            h_obs=h_obs,
+        )
+    ]
     post.continuous_state_params = continuous_state_params
 
     ssm_entropy = post._continuous_entropy()
     print("reference entropy: {}".format(ref_entropy))
     print("ssm_entropy: {}".format(ssm_entropy))
     assert np.allclose(ref_entropy, ssm_entropy)
+
 
 if __name__ == "__main__":
     test_expectations()

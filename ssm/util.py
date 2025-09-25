@@ -13,6 +13,7 @@ SEED = hash("ssm") % (2**32)
 LOG_EPS = 1e-16
 DIV_EPS = 1e-16
 
+
 def compute_state_overlap(z1, z2, K1=None, K2=None):
     assert z1.dtype == int and z2.dtype == int
     assert z1.shape == z2.shape
@@ -65,8 +66,8 @@ def rle(stateseq):
     durations : array_like (int)
         length of time in corresponding state
     """
-    pos, = np.where(np.diff(stateseq) != 0)
-    pos = np.concatenate(([0],pos+1,[len(stateseq)]))
+    (pos,) = np.where(np.diff(stateseq) != 0)
+    pos = np.concatenate(([0], pos + 1, [len(stateseq)]))
     return stateseq[pos[:-1]], np.diff(pos)
 
 
@@ -78,8 +79,7 @@ def random_rotation(n, theta=None):
     if n == 1:
         return np.random.rand() * np.eye(1)
 
-    rot = np.array([[np.cos(theta), -np.sin(theta)],
-                    [np.sin(theta), np.cos(theta)]])
+    rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
     out = np.eye(n)
     out[:2, :2] = rot
     q = np.linalg.qr(np.random.randn(n, n))[0]
@@ -156,29 +156,36 @@ def ensure_args_not_none(f):
 
         mask = np.ones_like(data, dtype=bool) if mask is None else mask
         return f(self, data, input=input, mask=mask, tag=tag, **kwargs)
+
     return wrapper
 
 
 def ensure_slds_args_not_none(f):
-    def wrapper(self, variational_mean, data, input=None, mask=None, tag=None, **kwargs):
+    def wrapper(
+        self, variational_mean, data, input=None, mask=None, tag=None, **kwargs
+    ):
         assert variational_mean is not None
         assert data is not None
         M = (self.M,) if isinstance(self.M, int) else self.M
         assert isinstance(M, tuple)
         input = np.zeros((data.shape[0],) + M) if input is None else input
         mask = np.ones_like(data, dtype=bool) if mask is None else mask
-        return f(self, variational_mean, data, input=input, mask=mask, tag=tag, **kwargs)
+        return f(
+            self, variational_mean, data, input=input, mask=mask, tag=tag, **kwargs
+        )
+
     return wrapper
 
+
 def ssm_pbar(num_iters, verbose, description, prob):
-    '''Return either progress bar or regular list for iterating. Inputs are:
+    """Return either progress bar or regular list for iterating. Inputs are:
 
-      num_iters (int)
-      verbose (int)     - if == 2, return trange object, else returns list
-      description (str) - description for progress bar
-      prob (float)      - values to initialize description fields at
+    num_iters (int)
+    verbose (int)     - if == 2, return trange object, else returns list
+    description (str) - description for progress bar
+    prob (float)      - values to initialize description fields at
 
-    '''
+    """
     if verbose == 2:
         pbar = trange(num_iters)
         pbar.set_description(description.format(*prob))
@@ -188,7 +195,7 @@ def ssm_pbar(num_iters, verbose, description, prob):
 
 
 def logistic(x):
-    return 1. / (1 + np.exp(-x))
+    return 1.0 / (1 + np.exp(-x))
 
 
 def logit(p):
@@ -235,6 +242,7 @@ def replicate(x, state_map, axis=-1):
     assert np.all(state_map >= 0) and np.all(state_map < x.shape[-1])
     return np.take(x, state_map, axis=axis)
 
+
 def collapse(x, state_map, axis=-1):
     """
     Collapse an array of shape (..., R) to shape (..., K) by summing
@@ -251,18 +259,29 @@ def collapse(x, state_map, axis=-1):
     R = x.shape[axis]
     assert state_map.ndim == 1 and state_map.shape[0] == R
     K = state_map.max() + 1
-    return np.concatenate([np.sum(np.take(x, np.where(state_map == k)[0], axis=axis),
-                                  axis=axis, keepdims=True)
-                           for k in range(K)], axis=axis)
+    return np.concatenate(
+        [
+            np.sum(
+                np.take(x, np.where(state_map == k)[0], axis=axis),
+                axis=axis,
+                keepdims=True,
+            )
+            for k in range(K)
+        ],
+        axis=axis,
+    )
 
 
 def check_shape(var, var_name, desired_shape):
-    assert var.shape == desired_shape, "Variable {} is of wrong shape. "\
-        "Expected {}, found {}.".format(var_name, desired_shape, var.shape)
+    assert var.shape == desired_shape, (
+        "Variable {} is of wrong shape. Expected {}, found {}.".format(
+            var_name, desired_shape, var.shape
+        )
+    )
 
 
 def trace_product(A, B):
-    """ Compute trace of the matrix product A*B efficiently.
+    """Compute trace of the matrix product A*B efficiently.
 
     A, B can be 2D or 3D arrays, in which case the trace is computed along
     the last two axes. In this case, the function will return an array.
@@ -275,4 +294,4 @@ def trace_product(A, B):
 
     # We'll take the trace along the last two dimensions.
     BT = np.swapaxes(B, -1, -2)
-    return np.sum(A*BT, axis=(-1, -2))
+    return np.sum(A * BT, axis=(-1, -2))

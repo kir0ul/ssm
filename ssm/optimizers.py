@@ -5,6 +5,7 @@ Modified from autograd.misc.optimizers.
 The function being optimized must take two arguments,
 an input value and an iteration number.
 """
+
 from functools import partial
 from warnings import warn
 
@@ -16,6 +17,7 @@ from autograd.wrap_util import wraps
 from scipy.optimize import minimize
 from ssm.primitives import solve_symm_block_tridiag
 
+
 def convex_combination(curr, target, alpha):
     """
     Output next = (1-alpha) * target + alpha * curr
@@ -26,7 +28,7 @@ def convex_combination(curr, target, alpha):
     assert alpha >= 0 and alpha <= 1
     _curr, unflatten = flatten(curr)
     _target, _ = flatten(target)
-    return unflatten(alpha * _curr + (1-alpha) * _target)
+    return unflatten(alpha * _curr + (1 - alpha) * _target)
 
 
 def unflatten_optimizer_step(step):
@@ -35,15 +37,20 @@ def unflatten_optimizer_step(step):
     with a version that handles trees of nested containers,
     i.e. (lists/tuples/dicts), with arrays/scalars at the leaves.
     """
+
     @wraps(step)
     def _step(value_and_grad, x, itr, state=None, *args, **kwargs):
         _x, unflatten = flatten(x)
+
         def _value_and_grad(x, i):
             v, g = value_and_grad(unflatten(x), i)
             return v, flatten(g)[0]
-        _next_x, _next_val, _next_g, _next_state = \
-            step(_value_and_grad, _x, itr, state=state, *args, **kwargs)
+
+        _next_x, _next_val, _next_g, _next_state = step(
+            _value_and_grad, _x, itr, state=state, *args, **kwargs
+        )
         return unflatten(_next_x), _next_val, _next_g, _next_state
+
     return _step
 
 
@@ -56,8 +63,11 @@ def sgd_step(value_and_grad, x, itr, state=None, step_size=0.1, mass=0.9):
     x = x + step_size * velocity
     return x, val, g, velocity
 
+
 @unflatten_optimizer_step
-def rmsprop_step(value_and_grad, x, itr, state=None, step_size=0.1, gamma=0.9, eps=10**-8):
+def rmsprop_step(
+    value_and_grad, x, itr, state=None, step_size=0.1, gamma=0.9, eps=10**-8
+):
     # Root mean squared prop: See Adagrad paper for details.
     avg_sq_grad = np.ones(len(x)) if state is None else state
     val, g = value_and_grad(x, itr)
@@ -67,22 +77,33 @@ def rmsprop_step(value_and_grad, x, itr, state=None, step_size=0.1, gamma=0.9, e
 
 
 @unflatten_optimizer_step
-def adam_step(value_and_grad, x, itr, state=None, step_size=0.001, b1=0.9, b2=0.999, eps=10**-8):
+def adam_step(
+    value_and_grad, x, itr, state=None, step_size=0.001, b1=0.9, b2=0.999, eps=10**-8
+):
     """
     Adam as described in http://arxiv.org/pdf/1412.6980.pdf.
     It's basically RMSprop with momentum and some correction terms.
     """
     m, v = (np.zeros(len(x)), np.zeros(len(x))) if state is None else state
     val, g = value_and_grad(x, itr)
-    m = (1 - b1) * g      + b1 * m    # First  moment estimate.
-    v = (1 - b2) * (g**2) + b2 * v    # Second moment estimate.
-    mhat = m / (1 - b1**(itr + 1))    # Bias correction.
-    vhat = v / (1 - b2**(itr + 1))
+    m = (1 - b1) * g + b1 * m  # First  moment estimate.
+    v = (1 - b2) * (g**2) + b2 * v  # Second moment estimate.
+    mhat = m / (1 - b1 ** (itr + 1))  # Bias correction.
+    vhat = v / (1 - b2 ** (itr + 1))
     x = x - (step_size * mhat) / (np.sqrt(vhat) + eps)
     return x, val, g, (m, v)
 
 
-def _generic_sgd(method, loss, x0, callback=None, num_iters=200, state=None, full_output=False, **kwargs):
+def _generic_sgd(
+    method,
+    loss,
+    x0,
+    callback=None,
+    num_iters=200,
+    state=None,
+    full_output=False,
+    **kwargs,
+):
     """
     Generic stochastic gradient descent step.
     """
@@ -101,14 +122,18 @@ def _generic_sgd(method, loss, x0, callback=None, num_iters=200, state=None, ful
         return x
 
 
-def _generic_minimize(method, loss, x0,
-                      verbose=False,
-                      num_iters=1000,
-                      tol=1e-4,
-                      state=None,
-                      full_output=False,
-                      suppress_warnings=False,
-                      **kwargs):
+def _generic_minimize(
+    method,
+    loss,
+    x0,
+    verbose=False,
+    num_iters=1000,
+    tol=1e-4,
+    state=None,
+    full_output=False,
+    suppress_warnings=False,
+    **kwargs,
+):
     """
     Minimize a given loss function with scipy.optimize.minimize.
     """
@@ -121,6 +146,7 @@ def _generic_minimize(method, loss, x0,
 
     # Specify callback for fitting
     itr = [0]
+
     def callback(x_flat):
         itr[0] += 1
         print("Iteration {} loss: {:.3f}".format(itr[0], loss(unflatten(x_flat), -1)))
@@ -132,13 +158,17 @@ def _generic_minimize(method, loss, x0,
         return g
 
     # Call the optimizer.  Pass in -1 as the iteration since it is unused.
-    result = minimize(_objective, _x0, args=(-1,),
-                      jac=safe_grad,
-                      method=method,
-                      callback=callback if verbose else None,
-                      options=dict(maxiter=num_iters, disp=verbose),
-                      tol=tol,
-                      **kwargs)
+    result = minimize(
+        _objective,
+        _x0,
+        args=(-1,),
+        jac=safe_grad,
+        method=method,
+        callback=callback if verbose else None,
+        options=dict(maxiter=num_iters, disp=verbose),
+        tol=tol,
+        **kwargs,
+    )
     if verbose:
         print("{} completed with message: \n{}".format(method, result.message))
 
@@ -150,6 +180,7 @@ def _generic_minimize(method, loss, x0,
     else:
         return unflatten(result.x)
 
+
 # Define optimizers
 sgd = partial(_generic_sgd, "sgd")
 rmsprop = partial(_generic_sgd, "rmsprop")
@@ -160,8 +191,8 @@ lbfgs = partial(_generic_minimize, "L-BFGS-B")
 
 # Special optimizer for function with block-tridiagonal hessian
 def newtons_method_block_tridiag_hessian(
-    x0, obj, grad_func, hess_func,
-    tolerance=1e-4, maxiter=100):
+    x0, obj, grad_func, hess_func, tolerance=1e-4, maxiter=100
+):
     """
     Newton's method to minimize a positive definite function with a
     block tridiagonal Hessian matrix.
@@ -174,7 +205,7 @@ def newtons_method_block_tridiag_hessian(
         H_diag, H_lower_diag = hess_func(x)
         g = grad_func(x)
         dx = -1.0 * solve_symm_block_tridiag(H_diag, H_lower_diag, g)
-        lambdasq = np.dot(g.ravel(), -1.0*dx.ravel())
+        lambdasq = np.dot(g.ravel(), -1.0 * dx.ravel())
         if lambdasq / 2.0 <= tolerance:
             is_converged = True
             break
@@ -185,14 +216,17 @@ def newtons_method_block_tridiag_hessian(
             break
 
     if not is_converged:
-        warn("Newton's method failed to converge in {} iterations. "
-             "Final mean abs(dx): {}".format(maxiter, np.mean(np.abs(dx))))
+        warn(
+            "Newton's method failed to converge in {} iterations. "
+            "Final mean abs(dx): {}".format(maxiter, np.mean(np.abs(dx)))
+        )
 
     return x
 
 
-def backtracking_line_search(x0, dx, obj, g, stepsize = 1.0, min_stepsize=1e-8,
-                             alpha=0.2, beta=0.7):
+def backtracking_line_search(
+    x0, dx, obj, g, stepsize=1.0, min_stepsize=1e-8, alpha=0.2, beta=0.7
+):
     """
     A backtracking line search for the step size in Newton's method.
     Algorithm 9.2, Boyd & Vandenberghe, 2004.
@@ -211,8 +245,8 @@ def backtracking_line_search(x0, dx, obj, g, stepsize = 1.0, min_stepsize=1e-8,
     # decrease stepsize until criterion is met
     # or stop at minimum step size
     while stepsize > min_stepsize:
-        fx = obj(x+ stepsize*dx)
-        if np.isnan(fx) or fx > f_term + grad_term*stepsize:
+        fx = obj(x + stepsize * dx)
+        if np.isnan(fx) or fx > f_term + grad_term * stepsize:
             stepsize *= beta
         else:
             break

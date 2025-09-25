@@ -20,31 +20,35 @@ Variational Laplace EM for SLDS
 # +
 import autograd.numpy as np
 import autograd.numpy.random as npr
+
 npr.seed(0)
 
 import matplotlib.pyplot as plt
 # %matplotlib inline
 
 import seaborn as sns
+
 sns.set_style("white")
 sns.set_context("talk")
 
-color_names = ["windows blue",
-               "red",
-               "amber",
-               "faded green",
-               "dusty purple",
-               "orange",
-               "clay",
-               "pink",
-               "greyish",
-               "mint",
-               "light cyan",
-               "steel blue",
-               "forest green",
-               "pastel purple",
-               "salmon",
-               "dark brown"]
+color_names = [
+    "windows blue",
+    "red",
+    "amber",
+    "faded green",
+    "dusty purple",
+    "orange",
+    "clay",
+    "pink",
+    "greyish",
+    "mint",
+    "light cyan",
+    "steel blue",
+    "forest green",
+    "pastel purple",
+    "salmon",
+    "dark brown",
+]
 
 colors = sns.xkcd_palette(color_names)
 
@@ -53,16 +57,16 @@ from ssm.util import random_rotation, find_permutation
 # -
 
 # Set the parameters of the SLDS
-T = 1000    # number of time bins
-K = 5       # number of discrete states
-D = 2       # number of latent dimensions
-N = 10      # number of observed dimensions
+T = 1000  # number of time bins
+K = 5  # number of discrete states
+D = 2  # number of latent dimensions
+N = 10  # number of observed dimensions
 
 # +
 # Make an SLDS with the true parameters
 true_slds = ssm.SLDS(N, K, D, emissions="gaussian_orthog")
 for k in range(K):
-    true_slds.dynamics.As[k] = .95 * random_rotation(D, theta=(k+1) * np.pi/20)
+    true_slds.dynamics.As[k] = 0.95 * random_rotation(D, theta=(k + 1) * np.pi / 20)
 z, x, y = true_slds.sample(T)
 
 # Mask off some data
@@ -90,24 +94,24 @@ y_masked = y * mask
 #                         variational_posterior="structured_meanfield",
 #                         initialize=False, num_iters=100)
 # ```
-# The output variables are the values of the objective at each iteration `elbos` and the variational posterior object `q_lem`. If you have already initialized a variational posterior object, you can pass that object as the argument of the `variational_posterior` parameter instead. Here, the `initialize` parameter was set to `False`, which assumes we have already initialized the model. Additionally, note that in `fit` you can also pass in keyword arguments for initialization of the variational posterior. 
+# The output variables are the values of the objective at each iteration `elbos` and the variational posterior object `q_lem`. If you have already initialized a variational posterior object, you can pass that object as the argument of the `variational_posterior` parameter instead. Here, the `initialize` parameter was set to `False`, which assumes we have already initialized the model. Additionally, note that in `fit` you can also pass in keyword arguments for initialization of the variational posterior.
 
 # ### Hyperparameters
 # There are a number of hyperparameters that can be used when fitting with `laplace_em`. These include generic hyperparameters:
 # - `num_iters` - the number of iterations to run (default = 100)
 # - `learning` - optimize the model parameters when True (default = True)
-#     
+#
 # Discrete state hyperparameters:
 # - `num_samples` - number of Monte Carlo samples (default = 1) used for evaluating expectations with respect to $q(x)$ in the update for $q(z)$
 #
 # Continuous state hyperparameters:
-# - `continuous_optimizer`, `continuous_tolerance`, `continuous_maxiter` specify parameters of the optimization for finding the most likely latent path in the continuous latent update. We recommend using the default optimizer Newton's method (`newton`) to compute the most likely latent path. However, Hessian-free optimization is supported with `lbfgs`. The tolerance and maxiter parameters can be adjusted for the user's requirements. 
+# - `continuous_optimizer`, `continuous_tolerance`, `continuous_maxiter` specify parameters of the optimization for finding the most likely latent path in the continuous latent update. We recommend using the default optimizer Newton's method (`newton`) to compute the most likely latent path. However, Hessian-free optimization is supported with `lbfgs`. The tolerance and maxiter parameters can be adjusted for the user's requirements.
 #
 # Model parameter update hyperparameters:
-# - `alpha` - parameter in $[0,1)$ with default $0.5$ that determines how greedy we are in updating the model parameters at each iteration. This is only used in conjunction with `parameters_update="mstep"`. 
+# - `alpha` - parameter in $[0,1)$ with default $0.5$ that determines how greedy we are in updating the model parameters at each iteration. This is only used in conjunction with `parameters_update="mstep"`.
 # - `parameters_update` - the model parameter updates are implemented via an m-step given a single sample from $q(x)$ (default, `"mstep"`) or whether using SGD with samples from $q(x)$ (`"sgd"`).
-# - `emission_optimizer` - the optimizer used to update parameters in the m-step. This defaults to the `adam` optimizer when using the `"sgd"` parameter updates. 
-# - `emission_optimizer_maxiter` - the maximum number of iterations for the inner loop of optimizing the emissions parameters. 
+# - `emission_optimizer` - the optimizer used to update parameters in the m-step. This defaults to the `adam` optimizer when using the `"sgd"` parameter updates.
+# - `emission_optimizer_maxiter` - the maximum number of iterations for the inner loop of optimizing the emissions parameters.
 
 # ### Exploring the effect of the `alpha` hyperparameter
 #
@@ -127,9 +131,15 @@ for alpha in alphas:
     slds.initialize(y_masked, masks=mask)
 
     # Fit the model using Laplace-EM with a structured variational posterior
-    q_lem_elbos, q_lem = slds.fit(y_masked, masks=mask, method="laplace_em",
-                               variational_posterior="structured_meanfield",
-                               initialize=False, num_iters=100, alpha=alpha)
+    q_lem_elbos, q_lem = slds.fit(
+        y_masked,
+        masks=mask,
+        method="laplace_em",
+        variational_posterior="structured_meanfield",
+        initialize=False,
+        num_iters=100,
+        alpha=alpha,
+    )
 
     # Get the posterior mean of the continuous states
     q_lem_x = q_lem.mean_continuous_states[0]
@@ -146,13 +156,13 @@ for alpha in alphas:
 # Plot the ELBOs
 q_elbos = []
 for alpha in alphas:
-    _,_,q_lem_elbos,_,_,_ = results[(alpha)]
+    _, _, q_lem_elbos, _, _, _ = results[(alpha)]
     q_elbos += [q_lem_elbos]
     plt.plot(q_lem_elbos[1:], label="alpha = {}".format(alpha), alpha=0.8)
 plt.xlabel("Iteration")
 plt.ylabel("ELBO")
 q_max = np.array(q_elbos).max()
-plt.ylim([q_max-0.1*np.abs(q_max),q_max+0.01*np.abs(q_max)])
+plt.ylim([q_max - 0.1 * np.abs(q_max), q_max + 0.01 * np.abs(q_max)])
 plt.legend()
 
 # +
@@ -163,34 +173,44 @@ zs = []
 for alpha in alphas:
     (_, _, _, _, q_lem_z, _) = results[(alpha)]
     zs += [q_lem_z]
-    
-plt.figure(figsize=(16,4))
+
+plt.figure(figsize=(16, 4))
 plt.imshow(np.row_stack((z, zs)), aspect="auto", interpolation="none")
-plt.plot(xlim, [0.5, 0.5], '-k', lw=2)
-plt.yticks([0,1,2,3,4,5],["$z_{\\mathrm{true}}$", *alphas])
+plt.plot(xlim, [0.5, 0.5], "-k", lw=2)
+plt.yticks([0, 1, 2, 3, 4, 5], ["$z_{\\mathrm{true}}$", *alphas])
 plt.ylabel("alpha")
 plt.xlim(xlim)
 # -
 
-plt.figure(figsize=(8,4))
+plt.figure(figsize=(8, 4))
 for d in range(D):
-    plt.plot(x[:,d] + 4 * d, '-', color='k', label="True" if d==0 else None)
+    plt.plot(x[:, d] + 4 * d, "-", color="k", label="True" if d == 0 else None)
     for i, alpha in enumerate(alphas):
-        _,_,_,q_lem_x,_,_ = results[(alpha)]
-        plt.plot(q_lem_x[:,d] + 4 * d, '-',  color=colors[i+1], label=alpha if d == 0 else None, alpha=0.75)
+        _, _, _, q_lem_x, _, _ = results[(alpha)]
+        plt.plot(
+            q_lem_x[:, d] + 4 * d,
+            "-",
+            color=colors[i + 1],
+            label=alpha if d == 0 else None,
+            alpha=0.75,
+        )
 plt.ylabel("$x$")
 plt.xlim(xlim)
 plt.legend()
 
 # Plot the smoothed observations
-plt.figure(figsize=(12,8))
+plt.figure(figsize=(12, 8))
 for n in range(N):
-    plt.plot(y[:, n] + 6 * n, '-', color='k', label="True" if n == 0 else None)
+    plt.plot(y[:, n] + 6 * n, "-", color="k", label="True" if n == 0 else None)
     for i, alpha in enumerate(alphas):
-        _,_,_,_,_,q_lem_y = results[(alpha)]
-        plt.plot(q_lem_y[:,n] + 6 * n, '-',  color=colors[i+1], label=alpha if n == 0 else None, alpha=0.75)
+        _, _, _, _, _, q_lem_y = results[(alpha)]
+        plt.plot(
+            q_lem_y[:, n] + 6 * n,
+            "-",
+            color=colors[i + 1],
+            label=alpha if n == 0 else None,
+            alpha=0.75,
+        )
 plt.legend()
 plt.xlabel("time")
 plt.xlim(xlim)
-
-

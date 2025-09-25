@@ -9,10 +9,16 @@ from scipy.stats import norm, t, bernoulli, poisson, vonmises
 from scipy.stats import multivariate_normal as mvn
 from scipy.special import logsumexp
 
-from ssm.stats import multivariate_normal_logpdf, \
-    expected_multivariate_normal_logpdf, diagonal_gaussian_logpdf, \
-    independent_studentst_logpdf, bernoulli_logpdf, categorical_logpdf, \
-    poisson_logpdf, vonmises_logpdf
+from ssm.stats import (
+    multivariate_normal_logpdf,
+    expected_multivariate_normal_logpdf,
+    diagonal_gaussian_logpdf,
+    independent_studentst_logpdf,
+    bernoulli_logpdf,
+    categorical_logpdf,
+    poisson_logpdf,
+    vonmises_logpdf,
+)
 
 
 def test_multivariate_normal_logpdf_simple(D=10):
@@ -119,12 +125,14 @@ def test_multivariate_normal_logpdf_batches_and_states_masked(D=10):
     N = 100
     K = 5
     x = npr.randn(B, N, D)
-    mask = npr.rand(B, N, D) < .5
+    mask = npr.rand(B, N, D) < 0.5
     mu = npr.randn(K, D)
     L = npr.randn(K, D, D)
     Sigma = np.matmul(L, np.swapaxes(L, -1, -2))
 
-    ll1 = multivariate_normal_logpdf(x[:, :, None, :], mu, Sigma, mask=mask[:, :, None, :])
+    ll1 = multivariate_normal_logpdf(
+        x[:, :, None, :], mu, Sigma, mask=mask[:, :, None, :]
+    )
     assert ll1.shape == (B, N, K)
 
     ll2 = np.empty((B, N, K))
@@ -135,7 +143,9 @@ def test_multivariate_normal_logpdf_batches_and_states_masked(D=10):
                 ll2[b, n] = 0
             else:
                 for k in range(K):
-                    ll2[b, n, k] = mvn.logpdf(x[b, n][m], mu[k][m], Sigma[k][np.ix_(m, m)])
+                    ll2[b, n, k] = mvn.logpdf(
+                        x[b, n][m], mu[k][m], Sigma[k][np.ix_(m, m)]
+                    )
 
     assert np.allclose(ll1, ll2)
 
@@ -146,12 +156,14 @@ def test_multivariate_normal_logpdf_batches_and_states_shared_cov_masked(D=10):
     N = 100
     K = 5
     x = npr.randn(B, N, D)
-    mask = npr.rand(B, N, D) < .5
+    mask = npr.rand(B, N, D) < 0.5
     mu = npr.randn(K, D)
     L = npr.randn(D, D)
     Sigma = np.dot(L, L.T)
 
-    ll1 = multivariate_normal_logpdf(x[:, :, None, :], mu, Sigma, mask=mask[:, :, None, :])
+    ll1 = multivariate_normal_logpdf(
+        x[:, :, None, :], mu, Sigma, mask=mask[:, :, None, :]
+    )
     assert ll1.shape == (B, N, K)
 
     ll2 = np.empty((B, N, K))
@@ -210,7 +222,10 @@ def test_diagonal_gaussian_logpdf(T=100, K=4, D=10):
     sigmasqs = np.exp(npr.randn(K, D))
 
     ll1 = diagonal_gaussian_logpdf(x[:, None, :], mu, sigmasqs)
-    ll2 = np.sum(norm.logpdf(x[:, None, :], mu[None, :, :], np.sqrt(sigmasqs[None, :, :])), axis=-1)
+    ll2 = np.sum(
+        norm.logpdf(x[:, None, :], mu[None, :, :], np.sqrt(sigmasqs[None, :, :])),
+        axis=-1,
+    )
     assert np.allclose(ll1, ll2)
 
 
@@ -222,7 +237,15 @@ def test_independent_studentst_logpdf(T=100, K=4, D=10):
     nus = np.exp(npr.randn(K, D))
 
     ll1 = independent_studentst_logpdf(x[:, None, :], mu, sigmasqs, nus)
-    ll2 = np.sum(t.logpdf(x[:, None, :], nus[None, :, :], loc=mu[None, :, :], scale=np.sqrt(sigmasqs[None, :, :])), axis=-1)
+    ll2 = np.sum(
+        t.logpdf(
+            x[:, None, :],
+            nus[None, :, :],
+            loc=mu[None, :, :],
+            scale=np.sqrt(sigmasqs[None, :, :]),
+        ),
+        axis=-1,
+    )
     assert np.allclose(ll1, ll2)
 
 
@@ -273,6 +296,7 @@ def test_vonmises_logpdf(T=100, K=4, D=10):
     mus = npr.randn(K, D)
     kappas = np.exp(npr.randn(K, D))
     ll1 = vonmises_logpdf(x[:, None, :], mus, kappas)
-    ll2 = np.sum(vonmises.logpdf(x[:, None, :], kappas[None, :, :], loc=mus[None, :, :]), axis=-1)
+    ll2 = np.sum(
+        vonmises.logpdf(x[:, None, :], kappas[None, :, :], loc=mus[None, :, :]), axis=-1
+    )
     assert np.allclose(ll1, ll2)
-

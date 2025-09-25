@@ -15,6 +15,7 @@ class _Hierarchical(object):
     Base class for hierarchical models.  Maintains a parent class and a
     bunch of children with their own perturbed parameters.
     """
+
     def __init__(self, base_class, *args, tags=(None,), lmbda=0.01, **kwargs):
         # Variance of child params around parent params
         self.lmbda = lmbda
@@ -27,7 +28,10 @@ class _Hierarchical(object):
         self.children = dict()
         for tag in tags:
             ch = self.children[tag] = base_class(*args, **kwargs)
-            ch.params = tuple(prm + np.sqrt(lmbda) * npr.randn(*prm.shape) for prm in self.parent.params)
+            ch.params = tuple(
+                prm + np.sqrt(lmbda) * npr.randn(*prm.shape)
+                for prm in self.parent.params
+            )
 
     @property
     def params(self):
@@ -62,7 +66,17 @@ class _Hierarchical(object):
                 lp += np.sum(norm.logpdf(cprm, pprm, self.lmbda))
         return lp
 
-    def m_step(self, expectations, datas, inputs, masks, tags, optimizer="adam", num_iters=25, **kwargs):
+    def m_step(
+        self,
+        expectations,
+        datas,
+        inputs,
+        masks,
+        tags,
+        optimizer="adam",
+        num_iters=25,
+        **kwargs,
+    ):
         for tag in tags:
             if not tag in self.tags:
                 raise Exception("Invalid tag: ".format(tag))
@@ -73,18 +87,22 @@ class _Hierarchical(object):
         # expected log joint
         def _expected_log_joint(expectations):
             elbo = self.log_prior()
-            for data, input, mask, tag, (expected_states, expected_joints) \
-                in zip(datas, inputs, masks, tags, expectations):
-
-                if hasattr(self.children[tag], 'log_initial_state_distn'):
-                    log_pi0 = self.children[tag].log_initial_state_distn(data, input, mask, tag)
+            for data, input, mask, tag, (expected_states, expected_joints) in zip(
+                datas, inputs, masks, tags, expectations
+            ):
+                if hasattr(self.children[tag], "log_initial_state_distn"):
+                    log_pi0 = self.children[tag].log_initial_state_distn(
+                        data, input, mask, tag
+                    )
                     elbo += np.sum(expected_states[0] * log_pi0)
 
-                if hasattr(self.children[tag], 'log_transition_matrices'):
-                    log_Ps = self.children[tag].log_transition_matrices(data, input, mask, tag)
+                if hasattr(self.children[tag], "log_transition_matrices"):
+                    log_Ps = self.children[tag].log_transition_matrices(
+                        data, input, mask, tag
+                    )
                     elbo += np.sum(expected_joints * log_Ps)
 
-                if hasattr(self.children[tag], 'log_likelihoods'):
+                if hasattr(self.children[tag], "log_likelihoods"):
                     lls = self.children[tag].log_likelihoods(data, input, mask, tag)
                     elbo += np.sum(expected_states * lls)
 
@@ -92,13 +110,15 @@ class _Hierarchical(object):
 
         # define optimization target
         T = sum([data.shape[0] for data in datas])
+
         def _objective(params, itr):
             self.params = params
             obj = _expected_log_joint(expectations)
             return -obj / T
 
-        self.params = \
-            optimizer(grad(_objective), self.params, num_iters=num_iters, **kwargs)
+        self.params = optimizer(
+            grad(_objective), self.params, num_iters=num_iters, **kwargs
+        )
 
 
 class HierarchicalInitialStateDistribution(_Hierarchical):
@@ -116,7 +136,9 @@ class HierarchicalObservations(_Hierarchical):
         return self.children[tag].log_likelihoods(data, input, mask, tag)
 
     def sample_x(self, z, xhist, input=None, tag=None, with_noise=True):
-        return self.children[tag].sample_x(z, xhist, input=input, tag=tag, with_noise=with_noise)
+        return self.children[tag].sample_x(
+            z, xhist, input=input, tag=tag, with_noise=with_noise
+        )
 
     def smooth(self, expectations, data, input, tag):
         return self.children[tag].smooth(expectations, data, input, tag)
@@ -132,6 +154,9 @@ class HierarchicalEmissions(_Hierarchical):
     def initialize_variational_params(self, data, input, mask, tag):
         return self.children[tag].initialize_variational_params(data, input, mask, tag)
 
-    def smooth(self, expected_states, variational_mean, data, input=None, mask=None, tag=None):
-        return self.children[tag].smooth(expected_states, variational_mean, data, input, mask, tag)
-
+    def smooth(
+        self, expected_states, variational_mean, data, input=None, mask=None, tag=None
+    ):
+        return self.children[tag].smooth(
+            expected_states, variational_mean, data, input, mask, tag
+        )

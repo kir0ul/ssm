@@ -9,27 +9,31 @@ from ssm.primitives import hmm_normalizer
 
 from tqdm import trange
 
+
 def forward_pass_np(pi0, Ps, log_likes):
     T, K = log_likes.shape
     alphas = []
     alphas.append(log_likes[0] + np.log(pi0))
-    for t in range(T-1):
+    for t in range(T - 1):
         anext = logsumexp(alphas[t] + np.log(Ps[t]).T, axis=1)
-        anext += log_likes[t+1]
+        anext += log_likes[t + 1]
         alphas.append(anext)
     return np.array(alphas)
+
 
 def hmm_normalizer_np(pi0, Ps, ll):
     alphas = forward_pass_np(pi0, Ps, ll)
     Z = logsumexp(alphas[-1])
     return Z
 
+
 def make_parameters(T, K):
     pi0 = np.ones(K) / K
-    Ps = npr.rand(T-1, K, K)
+    Ps = npr.rand(T - 1, K, K)
     Ps /= Ps.sum(axis=2, keepdims=True)
     ll = npr.randn(T, K)
     return pi0, Ps, ll
+
 
 def test_forward_pass(T=1000, K=3):
     pi0, Ps, ll = make_parameters(T, K)
@@ -37,6 +41,7 @@ def test_forward_pass(T=1000, K=3):
     a2 = np.zeros((T, K))
     forward_pass(pi0, Ps, ll, a2)
     assert np.allclose(a1, a2)
+
 
 def test_grad_hmm_normalizer(T=10, K=3):
     pi0, Ps, ll = make_parameters(T, K)
@@ -50,10 +55,11 @@ def test_grad_hmm_normalizer(T=10, K=3):
     assert np.allclose(dlogPs / Ps, grad(hmm_normalizer_np, argnum=1)(pi0, Ps, ll))
     assert np.allclose(dll, grad(hmm_normalizer_np, argnum=2)(pi0, Ps, ll))
 
+
 def test_hmm_normalizer_primitive(T=1000, K=3):
     # check reverse-mode to second order
     pi0, Ps, ll = make_parameters(T, K)
-    check_grads(hmm_normalizer, argnum=1, modes=['rev'], order=1)(pi0, Ps, ll)
+    check_grads(hmm_normalizer, argnum=1, modes=["rev"], order=1)(pi0, Ps, ll)
 
 
 def test_backward_pass(T=1000, K=5, D=2):

@@ -1,6 +1,7 @@
 """
 General purpose classes for (generalized) linear regression observation models.
 """
+
 from autograd import elementwise_grad
 import autograd.numpy as np
 import autograd.numpy.random as npr
@@ -15,40 +16,44 @@ mean_functions = dict(
     identity=lambda x: x,
     logistic=lambda x: 1 / (1 + np.exp(-x)),
     exp=lambda x: np.exp(x),
-    softplus=lambda x: np.log(1 + np.exp(x))
-    )
+    softplus=lambda x: np.log(1 + np.exp(x)),
+)
 
 partition_functions = dict(
     gaussian=lambda eta: 0.5 * np.dot(eta, eta),
     bernoulli=lambda eta: np.log1p(np.exp(eta)),
     poisson=lambda eta: np.exp(eta),
-    negative_binomial=lambda eta, r: -r * np.log(1 - np.exp(eta))
-    )
+    negative_binomial=lambda eta, r: -r * np.log(1 - np.exp(eta)),
+)
 
 canonical_link_functions = dict(
     gaussian=lambda mu: mu,
-    bernoulli=lambda mu: np.log(mu / (1-mu)),
+    bernoulli=lambda mu: np.log(mu / (1 - mu)),
     poisson=lambda mu: np.log(mu),
-    negative_binomial=lambda mu, r: np.log(mu / (mu + r))
-    )
+    negative_binomial=lambda mu, r: np.log(mu / (mu + r)),
+)
 
 model_kwarg_descriptions = dict(
     gaussian=dict(),
     bernoulli=dict(),
     poisson=dict(),
-    negative_binomial=dict(r="The \"number of failures\" parameterizing the negative binomial distribution.")
-    )
+    negative_binomial=dict(
+        r='The "number of failures" parameterizing the negative binomial distribution.'
+    ),
+)
 
 
-def fit_linear_regression(Xs, ys,
-                          weights=None,
-                          fit_intercept=True,
-                          expectations=None,
-                          prior_ExxT=None,
-                          prior_ExyT=None,
-                          nu0=1,
-                          Psi0=1
-                          ):
+def fit_linear_regression(
+    Xs,
+    ys,
+    weights=None,
+    fit_intercept=True,
+    expectations=None,
+    prior_ExxT=None,
+    prior_ExyT=None,
+    nu0=1,
+    Psi0=1,
+):
     """
     Fit a linear regression y_i ~ N(Wx_i + b, diag(S)) for W, b, S.
 
@@ -98,7 +103,6 @@ def fit_linear_regression(Xs, ys,
     EyyT = np.zeros((d, d))
     weight_sum = 0
     if expectations is None:
-
         # Compute the posterior. The priors must include a prior for the
         # intercept term, if given.
         if prior_ExxT is not None and prior_ExyT is not None:
@@ -143,19 +147,22 @@ def fit_linear_regression(Xs, ys,
         return W, Sigma
 
 
-def fit_scalar_glm(Xs, ys,
-                   model="bernoulli",
-                   mean_function="logistic",
-                   model_hypers={},
-                   fit_intercept=True,
-                   weights=None,
-                   X_variances=None,
-                   prior=None,
-                   proximal_point=None,
-                   threshold=1e-6,
-                   step_size=1,
-                   max_iter=50,
-                   verbose=False):
+def fit_scalar_glm(
+    Xs,
+    ys,
+    model="bernoulli",
+    mean_function="logistic",
+    model_hypers={},
+    fit_intercept=True,
+    weights=None,
+    X_variances=None,
+    prior=None,
+    proximal_point=None,
+    threshold=1e-6,
+    step_size=1,
+    max_iter=50,
+    verbose=False,
+):
     """
     Fit a GLM with vector inputs X and scalar outputs y.
     The user provides the inputs, outputs, the model type
@@ -273,8 +280,12 @@ def fit_scalar_glm(Xs, ys,
     # If the inputs are uncertain, the user may specify the marginal variance
     # of the data points.  These must be an array of (p, p) covariance matrices.
     if X_variances is not None:
-        X_variances = X_variances if isinstance(X_variances, (list, tuple)) else [X_variances]
-        assert all([X_var.shape == (X.shape[0], p, p) for X, X_var in zip(Xs, X_variances)])
+        X_variances = (
+            X_variances if isinstance(X_variances, (list, tuple)) else [X_variances]
+        )
+        assert all(
+            [X_var.shape == (X.shape[0], p, p) for X, X_var in zip(Xs, X_variances)]
+        )
     else:
         X_variances = [np.zeros((X.shape[0], p, p)) for X in Xs]
 
@@ -282,7 +293,7 @@ def fit_scalar_glm(Xs, ys,
     # Note: this could be memory intensive, but the code is a lot simpler.
     if fit_intercept:
         Xs = [np.column_stack((X, np.ones(X.shape[0]))) for X in Xs]
-        new_X_variances = [np.zeros((X.shape[0], p+1, p+1)) for X in Xs]
+        new_X_variances = [np.zeros((X.shape[0], p + 1, p + 1)) for X in Xs]
         for X_var, new_X_var in zip(X_variances, new_X_variances):
             new_X_var[:, :p, :p] = X_var
         X_variances = new_X_variances
@@ -321,13 +332,19 @@ def fit_scalar_glm(Xs, ys,
 
         # Combine the proximal point regularizer with the Gaussian prior.
         new_precision = prior_precision + 1 / alpha * np.eye(p)
-        prior_mean = np.linalg.solve(new_precision, np.dot(prior_precision, prior_mean) + point / alpha)
+        prior_mean = np.linalg.solve(
+            new_precision, np.dot(prior_precision, prior_mean) + point / alpha
+        )
         prior_precision = new_precision
 
     # Get the partition function (A) and mean function (f).
     # These determine the mapping from inputs to natural parameters (g).
     A = lambda eta: partition_functions[model](eta, **model_hypers)
-    f = mean_functions[mean_function] if isinstance(mean_function, str) else mean_function
+    f = (
+        mean_functions[mean_function]
+        if isinstance(mean_function, str)
+        else mean_function
+    )
     g = lambda u: canonical_link_functions[model](f(u), **model_hypers)
 
     # Compute necessary derivatives for IRLS
@@ -360,7 +377,6 @@ def fit_scalar_glm(Xs, ys,
         h = -np.dot(prior_precision, (theta - prior_mean))
 
         for X, y, weight, X_var in zip(Xs, ys, weights, X_variances):
-
             # Project inputs with current parameters and get predicted values
             u = np.dot(X, theta)
             yhat = f(u)
@@ -377,11 +393,11 @@ def fit_scalar_glm(Xs, ys,
             # Update the negative Hessian
             weighted_X = X * R[:, None] * weight[:, None]
             J += np.dot(weighted_X.T, X)
-            J += np.einsum('npq,n->pq', X_var, R)
+            J += np.einsum("npq,n->pq", X_var, R)
 
             # Update the gradient
             h += np.dot(weighted_X.T, H / R)
-            h += np.einsum('npq,n,q-> p', X_var, dH, theta)
+            h += np.einsum("npq,n,q-> p", X_var, dH, theta)
 
         # Solve for the Newton update
         # (current parameters + negative Hessian^{-1} gradient)
@@ -402,9 +418,9 @@ def fit_scalar_glm(Xs, ys,
         return theta
 
 
-def fit_multiclass_logistic_regression(X, y,
-                                       bias=None, K=None, W0=None, mu0=0, sigmasq0=1,
-                                       verbose=False, maxiter=1000):
+def fit_multiclass_logistic_regression(
+    X, y, bias=None, K=None, W0=None, mu0=0, sigmasq0=1, verbose=False, maxiter=1000
+):
     """
     Fit a multiclass logistic regression
 
@@ -445,29 +461,43 @@ def fit_multiclass_logistic_regression(X, y,
         W = np.reshape(W_flat, (K, D))
         scores = np.dot(X, W.T) + bias
         lp = np.sum(y_oh * scores) - np.sum(logsumexp(scores, axis=1))
-        prior = np.sum(-0.5 * (W - mu0)**2 / sigmasq0)
+        prior = np.sum(-0.5 * (W - mu0) ** 2 / sigmasq0)
         return -(lp + prior) / N
 
     W0 = W0 if W0 is not None else np.zeros((K, D))
     assert W0.shape == (K, D)
 
     itr = [0]
+
     def callback(W_flat):
         itr[0] += 1
         print("Iteration {} loss: {:.3f}".format(itr[0], loss(W_flat)))
 
-    result = minimize(loss, np.ravel(W0), jac=grad(loss),
-                      method="BFGS",
-                      callback=callback if verbose else None,
-                      options=dict(maxiter=maxiter, disp=verbose))
+    result = minimize(
+        loss,
+        np.ravel(W0),
+        jac=grad(loss),
+        method="BFGS",
+        callback=callback if verbose else None,
+        options=dict(maxiter=maxiter, disp=verbose),
+    )
 
     W = np.reshape(result.x, (K, D))
     return W
 
 
-def generalized_newton_studentst_dof(E_tau, E_logtau, nu0=2, a_nu=3, b_nu=3/2,
-                                     max_iter=100, nu_min=1e-8, nu_max=100, tol=1e-8,
-                                     verbose=False):
+def generalized_newton_studentst_dof(
+    E_tau,
+    E_logtau,
+    nu0=2,
+    a_nu=3,
+    b_nu=3 / 2,
+    max_iter=100,
+    nu_min=1e-8,
+    nu_max=100,
+    tol=1e-8,
+    verbose=False,
+):
     """
     Generalized Newton's method for the degrees of freedom parameter, nu,
     of a Student's t distribution.  See the notebook in the doc/students_t
@@ -479,10 +509,18 @@ def generalized_newton_studentst_dof(E_tau, E_logtau, nu0=2, a_nu=3, b_nu=3/2,
     R'(nu) = (a_nu - 1) / nu - b_nu
     R''(nu) = (1 - a_nu) / nu**2
     """
-    assert a_nu > 1, "Gamma prior nu ~ Ga(a_nu, b_nu) must be log concave; i.e. a_nu must be > 1."
-    delbo = lambda nu: 1/2 * (1 + np.log(nu/2)) - 1/2 * digamma(nu/2) \
-            + 1/2 * E_logtau - 1/2 * E_tau + (a_nu - 1) / nu - b_nu
-    ddelbo = lambda nu: 1/(2 * nu) - 1/4 * polygamma(1, nu/2) + (1 - a_nu) / nu**2
+    assert a_nu > 1, (
+        "Gamma prior nu ~ Ga(a_nu, b_nu) must be log concave; i.e. a_nu must be > 1."
+    )
+    delbo = (
+        lambda nu: 1 / 2 * (1 + np.log(nu / 2))
+        - 1 / 2 * digamma(nu / 2)
+        + 1 / 2 * E_logtau
+        - 1 / 2 * E_tau
+        + (a_nu - 1) / nu
+        - b_nu
+    )
+    ddelbo = lambda nu: 1 / (2 * nu) - 1 / 4 * polygamma(1, nu / 2) + (1 - a_nu) / nu**2
 
     dnu = np.inf
     nu = nu0
@@ -491,23 +529,28 @@ def generalized_newton_studentst_dof(E_tau, E_logtau, nu0=2, a_nu=3, b_nu=3/2,
             break
 
         if nu < nu_min or nu > nu_max:
-            warn("generalized_newton_studentst_dof fixed point grew beyond "
-                 "bounds [{},{}] to {}.".format(nu_min, nu_max, nu))
+            warn(
+                "generalized_newton_studentst_dof fixed point grew beyond "
+                "bounds [{},{}] to {}.".format(nu_min, nu_max, nu)
+            )
             nu = np.clip(nu, nu_min, nu_max)
             break
 
         # Perform the generalized Newton update
-        a = -nu**2 * ddelbo(nu)
+        a = -(nu**2) * ddelbo(nu)
         b = delbo(nu) - a / nu
-        assert a > 0 and b < 0, \
-               "generalized_newton_studentst_dof failed due to nonconcave optimization. \
+        assert a > 0 and b < 0, (
+            "generalized_newton_studentst_dof failed due to nonconcave optimization. \
                Try strengthening prior via parameters a_nu and b_nu."
+        )
         dnu = -a / b - nu
         nu = nu + dnu
 
     if itr == max_iter - 1:
-        warn("generalized_newton_studentst_dof failed to converge"
-             "at tolerance {} in {} iterations.".format(tol, itr))
+        warn(
+            "generalized_newton_studentst_dof failed to converge"
+            "at tolerance {} in {} iterations.".format(tol, itr)
+        )
 
     return nu
 
@@ -524,7 +567,7 @@ def fit_negative_binomial_integer_r(xs, r_min=1, r_max=20):
     N = len(xs)
     x_sum = np.sum(xs)
 
-    p_star = lambda r: np.clip(x_sum / (N * r + x_sum), 1e-8, 1-1e-8)
+    p_star = lambda r: np.clip(x_sum / (N * r + x_sum), 1e-8, 1 - 1e-8)
 
     def nb_marginal_likelihood(r):
         # Compute the log likelihood of data with shape r and
@@ -534,7 +577,7 @@ def fit_negative_binomial_integer_r(xs, r_min=1, r_max=20):
         return ll
 
     # Search for the optimal r. If variance of xs exceeds the mean, the MLE exists.
-    rs = np.arange(r_min, r_max+1)
+    rs = np.arange(r_min, r_max + 1)
     mlls = [nb_marginal_likelihood(r) for r in rs]
     r_star = rs[np.argmax(mlls)]
 
@@ -597,8 +640,13 @@ if __name__ == "__main__":
 
     print("poisson / softplus with uncertain data")
     y = npr.poisson(np.log1p(np.exp(u)))
-    what, bhat = fit_scalar_glm(X, y, model="poisson", mean_function="softplus",
-        X_variances=np.tile(0.5 * np.eye(p)[None, ...], (n, 1, 1)))
+    what, bhat = fit_scalar_glm(
+        X,
+        y,
+        model="poisson",
+        mean_function="softplus",
+        X_variances=np.tile(0.5 * np.eye(p)[None, ...], (n, 1, 1)),
+    )
     print("true: ", w, b)
     print("inf:  ", what, bhat)
     print("")
