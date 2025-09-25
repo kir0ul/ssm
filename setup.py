@@ -23,7 +23,7 @@ extensions.append(
               )
 )
 
-DISTNAME = 'ssm'
+# DISTNAME = 'ssm'
 DESCRIPTION = 'Bayesian learning and inference for a variety of state space models'
 with open('README.md') as fp:
     LONG_DESCRIPTION = fp.read()
@@ -36,11 +36,12 @@ VERSION = '0.0.1'
 
 
 if __name__ == "__main__":
-    setup(name=DISTNAME,
+    setup(
+          # name=DISTNAME,
           maintainer=MAINTAINER,
           maintainer_email=MAINTAINER_EMAIL,
           description=DESCRIPTION,
-          # license=LICENSE,
+          license=LICENSE,
           url=URL,
           version=VERSION,
           download_url=DOWNLOAD_URL,

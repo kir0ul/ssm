@@ -8,14 +8,14 @@ requires = [
 
 [project]
 name = "ssm"
-version = "0.0.1"
 dynamic = [
         "description",
         "readme",
         "maintainers",
         "classifiers",
+        "version",
         ]
-license = "MIT"
+# license = "MIT"
 dependencies = [
 	"numpy",
     "scipy",
@@ -28,4 +28,6 @@ dependencies = [
 	"matplotlib",
     "jupyterlab",
     "ipywidgets",
+    "ipdb",
+    "ruff",
 ]

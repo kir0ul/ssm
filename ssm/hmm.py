@@ -139,7 +139,7 @@ class HMM(object):
         self.observations.params = value[2]
 
     @ensure_args_are_lists
-    def initialize(self, datas, inputs=None, masks=None, tags=None, init_method="random"):
+    def initialize(self, datas, inputs=None, masks=None, tags=None, init_method="random", **kwargs):
         """
         Initialize parameters given data.
         """
