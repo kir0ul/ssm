@@ -940,7 +940,7 @@ class _AutoRegressiveObservationsBase(Observations):
     Base class for autoregressive observations of the form,
 
     E[x_t | x_{t-1}, z_t=k, u_t]
-        = \sum_{l=1}^{L} A_k^{(l)} x_{t-l} + b_k + V_k u_t.
+        = \\sum_{l=1}^{L} A_k^{(l)} x_{t-l} + b_k + V_k u_t.
 
     where L is the number of lags and u_t is the input.
     """
