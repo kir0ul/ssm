@@ -1,0 +1,31 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools",
+    "Cython",
+    "numpy",
+]
+
+[project]
+name = "ssm"
+version = "0.0.1"
+dynamic = [
+        "description",
+        "readme",
+        "maintainers",
+        "classifiers",
+        ]
+license = "MIT"
+dependencies = [
+	"numpy",
+    "scipy",
+    "numba",
+    "scikit-learn",
+    "tqdm",
+    "autograd",
+	"Cython",
+    "seaborn",
+	"matplotlib",
+    "jupyterlab",
+    "ipywidgets",
+]

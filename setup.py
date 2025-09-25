@@ -40,7 +40,7 @@ if __name__ == "__main__":
           maintainer=MAINTAINER,
           maintainer_email=MAINTAINER_EMAIL,
           description=DESCRIPTION,
-          license=LICENSE,
+          # license=LICENSE,
           url=URL,
           version=VERSION,
           download_url=DOWNLOAD_URL,
@@ -49,7 +49,7 @@ if __name__ == "__main__":
           classifiers=[
               'Intended Audience :: Science/Research',
               'Intended Audience :: Developers',
-              'License :: OSI Approved',
+              # 'License :: OSI Approved',
               'Programming Language :: C',
               'Programming Language :: Python',
               'Topic :: Software Development',
